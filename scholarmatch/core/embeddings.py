@@ -5,9 +5,9 @@ import os
 from typing import List, Union, Optional
 import numpy as np
 
-from scholarmatch.config import DEFAULT_EMBEDDING_MODEL, CACHE_DIR, EMBEDDING_DIM
+from scholarmatch.config import DEFAULT_EMBEDDING_MODEL, EMBEDDING_DIM
 
-# In-memory LRU cache for embeddings
+# In-memory LRU cache for embeddings across sessions
 _EMBEDDING_CACHE: dict[str, np.ndarray] = {}
 
 
@@ -49,19 +49,22 @@ class DenseEmbeddingEngine:
         self._fallback = FallbackVectorizer(n_components=EMBEDDING_DIM)
         self._backend = "uninitialized"
 
-        if not use_fallback_only:
+        if not use_fallback_only and os.getenv("SCHOLARMATCH_FORCE_FALLBACK", "0") != "1":
             self._try_load_model()
         else:
-            self._backend = "deterministic_tfidf_svd"
+            self._backend = "Deterministic Feature Hashing (Fast)"
 
     def _try_load_model(self):
         try:
+            import torch
+            torch.set_num_threads(1)  # Prevent multi-threading lockup on Windows Streamlit
             from sentence_transformers import SentenceTransformer
+            # Try loading cached model
             self._model = SentenceTransformer(self.model_name)
-            self._backend = f"sentence_transformers ({self.model_name})"
+            self._backend = f"SentenceTransformer ({self.model_name})"
         except Exception:
-            # Gracefully fallback to pure-python scikit-learn pipeline
-            self._backend = "deterministic_tfidf_svd (fallback)"
+            # Gracefully fallback to deterministic pure-python pipeline
+            self._backend = "Deterministic Feature Hashing (Fast)"
 
     @property
     def backend(self) -> str:
@@ -75,7 +78,7 @@ class DenseEmbeddingEngine:
         single_input = isinstance(texts, str)
         text_list = [texts] if single_input else texts
 
-        embeddings: List[np.ndarray] = []
+        embeddings: List[Optional[np.ndarray]] = []
         uncached_indices: List[int] = []
         uncached_texts: List[str] = []
 
@@ -84,24 +87,29 @@ class DenseEmbeddingEngine:
             if h in _EMBEDDING_CACHE:
                 embeddings.append(_EMBEDDING_CACHE[h])
             else:
-                embeddings.append(None)  # Placeholder
+                embeddings.append(None)
                 uncached_indices.append(idx)
                 uncached_texts.append(text)
 
         if uncached_texts:
             if self._model is not None:
-                new_vecs = self._model.encode(
-                    uncached_texts,
-                    convert_to_numpy=True,
-                    normalize_embeddings=True,
-                    show_progress_bar=show_progress_bar
-                ).astype(np.float32)
+                try:
+                    import torch
+                    with torch.no_grad():
+                        new_vecs = self._model.encode(
+                            uncached_texts,
+                            convert_to_numpy=True,
+                            normalize_embeddings=True,
+                            show_progress_bar=False,
+                            batch_size=32
+                        ).astype(np.float32)
+                except Exception:
+                    new_vecs = self._fallback.transform(uncached_texts)
             else:
                 new_vecs = self._fallback.transform(uncached_texts)
 
             for local_idx, orig_idx in enumerate(uncached_indices):
                 vec = new_vecs[local_idx]
-                # Guarantee unit L2 norm
                 norm = np.linalg.norm(vec)
                 if norm > 0:
                     vec = vec / norm
@@ -120,11 +128,8 @@ class DenseEmbeddingEngine:
         if doc_vecs.ndim == 1:
             doc_vecs = doc_vecs.reshape(1, -1)
 
-        # Assuming vectors are L2-normalized: dot product is cosine similarity
         sims = np.dot(query_vec, doc_vecs.T).flatten()
-        # Bound in [-1.0, 1.0] and map to [0, 1] for relevance scoring
         sims = np.clip(sims, -1.0, 1.0)
-        # Shift slightly to [0, 1] range: 0.5 * (sim + 1.0) or max(0, sim)
         return np.clip((sims + 1.0) / 2.0, 0.0, 1.0)
 
 

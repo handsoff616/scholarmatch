@@ -78,6 +78,7 @@ class VerbatimClaimAuditor:
                     "doi": paper.doi,
                     "year": paper.year,
                     "venue": paper.venue or "Peer-Reviewed Publication",
+                    "authors": paper.authors,
                     "citation_count": paper.citation_count,
                     "references": paper.references,
                 })
@@ -141,7 +142,7 @@ class VerbatimClaimAuditor:
                     paper_title=c_entry["paper_title"],
                     doi=c_entry["doi"],
                     year=c_entry["year"],
-                    authors="Indexed Academic Author(s)",
+                    authors=c_entry.get("authors", "Academic Authors"),
                     venue=c_entry["venue"],
                     lcs_ratio=round(lcs_r, 4),
                     ngram_containment=round(ng_cov, 4),

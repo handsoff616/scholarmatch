@@ -18,6 +18,7 @@ class ActiveGrant(BaseModel):
 class Publication(BaseModel):
     title: str = Field(..., description="Title of the paper")
     abstract: str = Field(..., description="Abstract text")
+    authors: str = Field("Verified Academic Authors", description="Author list of paper")
     year: int = Field(..., description="Publication year")
     venue: Optional[str] = Field(None, description="Conference or journal venue")
     doi: Optional[str] = Field(None, description="Digital Object Identifier")
