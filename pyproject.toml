@@ -1,0 +1,93 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scholarmatch"
+version = "0.1.0"
+description = "Deterministic hybrid retrieval, literature gap discovery, co-author radar, and claim evidence auditing for academic research."
+readme = "README.md"
+authors = [
+    { name = "ScholarMatch Contributors" }
+]
+license = { text = "MIT" }
+requires-python = ">=3.10"
+keywords = [
+    "research-tech",
+    "academic-search",
+    "hybrid-retrieval",
+    "bm25",
+    "embeddings",
+    "literature-review",
+    "gap-discovery",
+    "co-author-radar",
+    "verbatim-audit",
+    "openalex"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+dependencies = [
+    "numpy>=1.23.0",
+    "pydantic>=2.0.0",
+    "requests>=2.28.0",
+    "scikit-learn>=1.2.0",
+    "networkx>=3.0",
+    "rich>=13.0.0",
+    "typer>=0.9.0",
+    "pandas>=2.0.0",
+]
+
+[project.optional-dependencies]
+neural = [
+    "sentence-transformers>=2.2.0",
+    "torch>=2.0.0",
+]
+ui = [
+    "streamlit>=1.28.0",
+    "plotly>=5.15.0",
+    "matplotlib>=3.7.0",
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.1.0",
+    "black>=23.0.0",
+]
+all = [
+    "sentence-transformers>=2.2.0",
+    "torch>=2.0.0",
+    "streamlit>=1.28.0",
+    "plotly>=5.15.0",
+    "matplotlib>=3.7.0",
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+]
+
+[project.scripts]
+scholarmatch = "scholarmatch.cli:main"
+affinitylens = "scholarmatch.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["scholarmatch*"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers"
+testpaths = [
+    "tests",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
