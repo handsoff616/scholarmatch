@@ -1,4 +1,4 @@
-"""Root entry point for Hugging Face Spaces and Streamlit Cloud deployment."""
+"""Root entry point for Hugging Face Spaces, Streamlit Cloud, and local deployment."""
 
 import sys
 from pathlib import Path
@@ -8,5 +8,6 @@ root_dir = Path(__file__).resolve().parent
 if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
-# Import and execute the UI
-from scholarmatch.ui.app import *
+from scholarmatch.ui.app import main
+
+main()
