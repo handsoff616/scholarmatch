@@ -1,10 +1,14 @@
 """Semantic Scholar (S2) Graph API Connector."""
 
+import logging
 from typing import List, Dict, Any, Optional
 import requests
 
 from scholarmatch.config import REQUEST_TIMEOUT, DEFAULT_USER_AGENT
 from scholarmatch.models.schemas import FacultyProfile, Publication
+from scholarmatch.connectors.http_utils import get_resilient_session
+
+logger = logging.getLogger(__name__)
 
 
 class SemanticScholarClient:
@@ -22,6 +26,7 @@ class SemanticScholarClient:
         }
         if api_key:
             self.headers["x-api-key"] = api_key
+        self.session = get_resilient_session(retries=3)
 
     def search_authors(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
         """Search authors on Semantic Scholar by name."""
@@ -33,8 +38,9 @@ class SemanticScholarClient:
         }
 
         try:
-            resp = requests.get(url, headers=self.headers, params=params, timeout=REQUEST_TIMEOUT)
+            resp = self.session.get(url, headers=self.headers, params=params, timeout=REQUEST_TIMEOUT)
             if resp.status_code != 200:
+                logger.warning("Semantic Scholar author search returned status %d", resp.status_code)
                 return []
 
             data = resp.json().get("data", [])
@@ -55,72 +61,70 @@ class SemanticScholarClient:
                 })
 
             return authors
-        except Exception:
+        except requests.RequestException as e:
+            logger.warning("Semantic Scholar network request failed: %s", e)
+            return []
+        except Exception as e:
+            logger.exception("Failed to parse Semantic Scholar search response: %s", e)
             return []
 
-    def fetch_author_profile(self, author_id: str, limit_papers: int = 10) -> Optional[FacultyProfile]:
-        """Fetch full author details and top papers from Semantic Scholar."""
+    def fetch_author_profile(self, author_id: str, max_papers: int = 10) -> Optional[FacultyProfile]:
+        """Fetch full author details and recent publications from Semantic Scholar."""
         url = f"{self.BASE_URL}/author/{author_id}"
         params = {
-            "fields": (
-                "name,affiliations,homepage,paperCount,citationCount,hIndex,"
-                "papers.title,papers.abstract,papers.year,papers.venue,papers.citationCount,papers.externalIds"
-            )
+            "fields": "name,affiliations,homepage,paperCount,citationCount,hIndex,papers.title,papers.abstract,papers.year,papers.venue,papers.citationCount"
         }
 
         try:
-            resp = requests.get(url, headers=self.headers, params=params, timeout=REQUEST_TIMEOUT)
+            resp = self.session.get(url, headers=self.headers, params=params, timeout=REQUEST_TIMEOUT)
             if resp.status_code != 200:
+                logger.warning("Semantic Scholar profile fetch returned status %d for %s", resp.status_code, author_id)
                 return None
 
             data = resp.json()
             name = data.get("name", "Unknown Researcher")
             affs = data.get("affiliations") or []
             inst = affs[0] if affs else "Academic Institution"
-            h_index = data.get("hIndex", 0)
-            total_citations = data.get("citationCount", 0)
+            h_idx = data.get("hIndex", 0)
+            tot_citations = data.get("citationCount", 0)
 
-            raw_papers = data.get("papers") or []
+            raw_papers = data.get("papers", [])[:max_papers]
             publications: List[Publication] = []
-            extracted_keywords = set()
 
-            for p in raw_papers[:limit_papers]:
-                title = p.get("title") or "Untitled Paper"
-                abstract = p.get("abstract") or f"Published work by {name}."
-                year = p.get("year") or 2024
-                venue = p.get("venue") or "Peer-Reviewed Venue"
-                citations = p.get("citationCount", 0)
-                ext_ids = p.get("externalIds") or {}
-                doi = ext_ids.get("DOI")
-
+            for p in raw_papers:
                 publications.append(Publication(
-                    title=title,
-                    abstract=abstract,
-                    year=year,
-                    venue=venue,
-                    doi=doi,
-                    citation_count=citations,
-                    keywords=[]
+                    title=p.get("title") or "Untitled Publication",
+                    abstract=p.get("abstract") or f"Research publication by {name}.",
+                    authors=name,
+                    year=p.get("year") or 2023,
+                    venue=p.get("venue") or "Conference/Journal",
+                    citation_count=p.get("citationCount", 0),
+                    keywords=["Computer Science", "Artificial Intelligence"]
                 ))
 
             summary = (
-                f"Faculty lab of {name} at {inst}. "
-                f"Published {len(raw_papers)} papers with {total_citations:,} total citations and an h-index of {h_index}."
+                f"Principal investigator {name} at {inst}. Recorded citations: {tot_citations:,} "
+                f"across {data.get('paperCount', 0)} papers with an h-index of {h_idx}."
             )
 
             return FacultyProfile(
                 id=f"s2-{author_id}",
                 name=name,
                 institution=inst,
-                department="Computer Science / Engineering",
+                department="Department of Computational Sciences",
                 lab_name=f"{name.split()[-1]} Research Group",
                 lab_website=data.get("homepage") or f"https://www.semanticscholar.org/author/{author_id}",
                 research_summary=summary,
-                specialties=["Artificial Intelligence", "Computational Science"],
+                specialties=["Artificial Intelligence", "Machine Learning"],
                 recent_publications=publications,
                 active_grants=[],
-                h_index=h_index,
+                h_index=h_idx,
+                total_citations=tot_citations,
                 accepting_students=True
             )
-        except Exception:
+        except requests.RequestException as e:
+            logger.warning("Semantic Scholar profile fetch request failed: %s", e)
+            return None
+        except Exception as e:
+            logger.exception("Failed to parse Semantic Scholar profile: %s", e)
             return None

@@ -1,10 +1,15 @@
 """CrossRef DOI Resolver and Metadata Client."""
 
+import re
+import logging
 from typing import Optional, Dict, Any
 import requests
 
 from scholarmatch.config import CROSSREF_BASE_URL, DEFAULT_USER_AGENT, REQUEST_TIMEOUT
 from scholarmatch.models.schemas import Publication
+from scholarmatch.connectors.http_utils import get_resilient_session
+
+logger = logging.getLogger(__name__)
 
 
 class CrossRefClient:
@@ -14,6 +19,7 @@ class CrossRefClient:
         self.headers = {
             "User-Agent": f"ScholarMatch/0.1.0 ({f'mailto:{email}' if email else DEFAULT_USER_AGENT})"
         }
+        self.session = get_resilient_session(retries=3)
 
     def resolve_doi(self, doi: str) -> Optional[Publication]:
         """Fetch canonical metadata for a specific DOI."""
@@ -21,15 +27,14 @@ class CrossRefClient:
         url = f"{CROSSREF_BASE_URL}/works/{clean_doi}"
 
         try:
-            resp = requests.get(url, headers=self.headers, timeout=REQUEST_TIMEOUT)
+            resp = self.session.get(url, headers=self.headers, timeout=REQUEST_TIMEOUT)
             if resp.status_code != 200:
+                logger.warning("CrossRef DOI resolution returned status %d for DOI %s", resp.status_code, clean_doi)
                 return None
             data = resp.json().get("message", {})
             title_list = data.get("title", [])
             title = title_list[0] if title_list else "Unknown Title"
             abstract = data.get("abstract", "Abstract not indexed on CrossRef.")
-            # Remove XML/JATS tags if present in CrossRef abstract
-            import re
             abstract_clean = re.sub(r"<[^>]+>", "", abstract).strip()
 
             issued = data.get("issued", {}).get("date-parts", [[2024]])
@@ -38,7 +43,6 @@ class CrossRefClient:
             venue = container[0] if container else "Peer-Reviewed Venue"
             citations = data.get("is-referenced-by-count", 0)
 
-            # References
             reference_entries = data.get("reference", [])
             ref_dois = [r.get("DOI") for r in reference_entries if r.get("DOI")]
 
@@ -52,5 +56,9 @@ class CrossRefClient:
                 keywords=data.get("subject", []),
                 references=ref_dois[:10]
             )
-        except Exception:
+        except requests.RequestException as e:
+            logger.warning("CrossRef network request failed: %s", e)
+            return None
+        except Exception as e:
+            logger.exception("Failed to parse CrossRef DOI response: %s", e)
             return None

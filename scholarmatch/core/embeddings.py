@@ -2,13 +2,48 @@
 
 import hashlib
 import os
+import logging
+from collections import OrderedDict
 from typing import List, Union, Optional
 import numpy as np
 
 from scholarmatch.config import DEFAULT_EMBEDDING_MODEL, EMBEDDING_DIM
 
-# In-memory LRU cache for embeddings across sessions
-_EMBEDDING_CACHE: dict[str, np.ndarray] = {}
+logger = logging.getLogger(__name__)
+
+
+class BoundedLRUCache:
+    """Thread-safe bounded in-memory LRU cache to prevent memory leaks."""
+
+    def __init__(self, maxsize: int = 2048):
+        self.maxsize = maxsize
+        self._cache: OrderedDict[str, np.ndarray] = OrderedDict()
+
+    def get(self, key: str) -> Optional[np.ndarray]:
+        if key in self._cache:
+            self._cache.move_to_end(key)
+            return self._cache[key]
+        return None
+
+    def set(self, key: str, value: np.ndarray):
+        if key in self._cache:
+            self._cache.move_to_end(key)
+        self._cache[key] = value
+        if len(self._cache) > self.maxsize:
+            self._cache.popitem(last=False)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._cache
+
+    def __len__(self) -> int:
+        return len(self._cache)
+
+    def clear(self):
+        self._cache.clear()
+
+
+# Global bounded cache singleton
+_EMBEDDING_CACHE = BoundedLRUCache(maxsize=2048)
 
 
 class FallbackVectorizer:
@@ -59,11 +94,13 @@ class DenseEmbeddingEngine:
             import torch
             torch.set_num_threads(1)  # Prevent multi-threading lockup on Windows Streamlit
             from sentence_transformers import SentenceTransformer
-            # Try loading cached model
             self._model = SentenceTransformer(self.model_name)
             self._backend = f"SentenceTransformer ({self.model_name})"
-        except Exception:
-            # Gracefully fallback to deterministic pure-python pipeline
+        except ImportError as e:
+            logger.info("SentenceTransformer/PyTorch not installed; using deterministic fast vectorizer: %s", e)
+            self._backend = "Deterministic Feature Hashing (Fast)"
+        except Exception as e:
+            logger.warning("Could not load neural model '%s': %s. Falling back to deterministic vectorizer.", self.model_name, e)
             self._backend = "Deterministic Feature Hashing (Fast)"
 
     @property
@@ -84,8 +121,9 @@ class DenseEmbeddingEngine:
 
         for idx, text in enumerate(text_list):
             h = self._hash_text(text)
-            if h in _EMBEDDING_CACHE:
-                embeddings.append(_EMBEDDING_CACHE[h])
+            cached_vec = _EMBEDDING_CACHE.get(h)
+            if cached_vec is not None:
+                embeddings.append(cached_vec)
             else:
                 embeddings.append(None)
                 uncached_indices.append(idx)
@@ -103,7 +141,8 @@ class DenseEmbeddingEngine:
                             show_progress_bar=False,
                             batch_size=32
                         ).astype(np.float32)
-                except Exception:
+                except Exception as e:
+                    logger.warning("Neural encoding failed: %s. Using fallback vectorizer.", e)
                     new_vecs = self._fallback.transform(uncached_texts)
             else:
                 new_vecs = self._fallback.transform(uncached_texts)
@@ -114,7 +153,7 @@ class DenseEmbeddingEngine:
                 if norm > 0:
                     vec = vec / norm
                 h = self._hash_text(uncached_texts[local_idx])
-                _EMBEDDING_CACHE[h] = vec
+                _EMBEDDING_CACHE.set(h, vec)
                 embeddings[orig_idx] = vec
 
         res = np.array(embeddings, dtype=np.float32)

@@ -1,7 +1,8 @@
 """Semantic Literature Review, Landscape Mapping, and Gap Discovery Engine."""
 
 import math
-from typing import List, Dict, Any, Tuple
+import re
+from typing import List, Dict, Any, Tuple, Optional, Set
 import numpy as np
 from sklearn.decomposition import PCA
 
@@ -61,8 +62,11 @@ class LiteratureGapAnalyzer:
         method_embs = self.embedding_engine.encode(self.methods)
         domain_embs = self.embedding_engine.encode(self.domains)
 
-        # 2. Build Paper Text Corpus for Density Co-occurrence Calculation
-        paper_texts = [f"{p.title} {p.abstract} {' '.join(p.keywords)}".lower() for p in indexed_papers]
+        # 2. Pre-tokenize paper corpus into sets of normalized lowercase word tokens for fast O(1) set lookup
+        paper_token_sets: List[Set[str]] = [
+            set(re.findall(r"\b[a-zA-Z0-9_\-]+\b", f"{p.title} {p.abstract} {' '.join(p.keywords)}".lower()))
+            for p in indexed_papers
+        ]
 
         gaps: List[ResearchGap] = []
 
@@ -80,13 +84,13 @@ class LiteratureGapAnalyzer:
                 if compatibility < min_compatibility:
                     continue
 
-                # Empirical Literature Density: count joint occurrences across indexed literature
+                # Empirical Literature Density: count joint occurrences via fast token set intersection
                 density_count = 0
                 matching_papers: List[str] = []
 
-                for p_idx, text in enumerate(paper_texts):
-                    has_method = any(mk in text for mk in m_keywords)
-                    has_domain = any(dk in text for dk in d_keywords)
+                for p_idx, p_tokens in enumerate(paper_token_sets):
+                    has_method = any(mk in p_tokens for mk in m_keywords)
+                    has_domain = any(dk in p_tokens for dk in d_keywords)
                     if has_method and has_domain:
                         density_count += 1
                         matching_papers.append(indexed_papers[p_idx].title)
@@ -126,7 +130,7 @@ class LiteratureGapAnalyzer:
     ) -> Dict[str, Any]:
         """Compute 2D PCA landscape coordinates for visual plotting of literature clusters."""
         if not papers:
-            return {"points": [], "query_coord": None}
+            return {"points": [], "query_coord": None, "explained_variance_ratio": []}
 
         texts = [f"{p.title}. {p.abstract}" for p in papers]
         if query_topic:

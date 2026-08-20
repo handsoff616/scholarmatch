@@ -1,9 +1,13 @@
 """DBLP Computer Science Bibliography API Connector."""
 
+import logging
 from typing import List, Dict, Any, Optional
 import requests
 
 from scholarmatch.config import REQUEST_TIMEOUT, DEFAULT_USER_AGENT
+from scholarmatch.connectors.http_utils import get_resilient_session
+
+logger = logging.getLogger(__name__)
 
 
 class DBLPClient:
@@ -13,6 +17,7 @@ class DBLPClient:
 
     def __init__(self):
         self.headers = {"User-Agent": DEFAULT_USER_AGENT}
+        self.session = get_resilient_session(retries=3)
 
     def search_authors(self, name_query: str, limit: int = 5) -> List[Dict[str, Any]]:
         """Search DBLP authors by name."""
@@ -22,8 +27,9 @@ class DBLPClient:
             "h": limit
         }
         try:
-            resp = requests.get(self.BASE_URL, headers=self.headers, params=params, timeout=REQUEST_TIMEOUT)
+            resp = self.session.get(self.BASE_URL, headers=self.headers, params=params, timeout=REQUEST_TIMEOUT)
             if resp.status_code != 200:
+                logger.warning("DBLP search returned non-200 status %d for query %s", resp.status_code, name_query)
                 return []
 
             result_data = resp.json().get("result", {}).get("hits", {}).get("hit", [])
@@ -58,9 +64,13 @@ class DBLPClient:
                     "name": author_name,
                     "dblp_url": url,
                     "affiliations": affiliations,
-                    "dblp_id": hit.get("@id")
+                    "source": "DBLP"
                 })
 
             return authors
-        except Exception:
+        except requests.RequestException as e:
+            logger.warning("DBLP network request failed: %s", e)
+            return []
+        except Exception as e:
+            logger.exception("Failed to parse DBLP API response: %s", e)
             return []

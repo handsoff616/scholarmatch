@@ -10,6 +10,8 @@ A deterministic, mathematically grounded engine for:
 """
 
 import sys
+import html
+import logging
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 import streamlit as st
@@ -34,6 +36,15 @@ from scholarmatch.connectors.semantic_scholar import SemanticScholarClient
 from scholarmatch.connectors.dblp import DBLPClient
 from scholarmatch.connectors.arxiv import ArxivClient
 from scholarmatch.connectors.openalex import OpenAlexClient
+
+logger = logging.getLogger(__name__)
+
+
+def esc(val: Any) -> str:
+    """Safely escape text for HTML interpolation to eliminate XSS risks."""
+    if val is None:
+        return ""
+    return html.escape(str(val))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -91,8 +102,8 @@ def fetch_live_researcher_profile(name_query: str) -> Optional[FacultyProfile]:
                 total_citations=a.get("cited_by_count", 0),
                 accepting_students=True
             )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("OpenAlex profile synthesis failed for '%s': %s", name_query, e)
 
     # 2. Fallback to Semantic Scholar
     try:
@@ -119,8 +130,8 @@ def fetch_live_researcher_profile(name_query: str) -> Optional[FacultyProfile]:
                 total_citations=a.get("citation_count", 0),
                 accepting_students=True
             )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Semantic Scholar profile synthesis failed for '%s': %s", name_query, e)
 
     return None
 
@@ -339,15 +350,15 @@ def main():
                   <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                     <div>
                       <div style="font-size:1.15rem; font-weight:700; color:#0F172A;">
-                        #{res.rank} {fac.name} — <span style="font-weight:400; color:#64748B; font-size:0.95rem;">{fac.institution}</span>
+                        #{res.rank} {esc(fac.name)} — <span style="font-weight:400; color:#64748B; font-size:0.95rem;">{esc(fac.institution)}</span>
                       </div>
                       <div style="color:#0284C7; font-weight:600; font-size:0.9rem; margin-top:2px;">
-                        {fac.lab_name} ({fac.department})
+                        {esc(fac.lab_name)} ({esc(fac.department)})
                       </div>
                     </div>
                     <div style="text-align:right;">
                       <div class="score-value">{b.final_affinity_score:.1f}%</div>
-                      <span class="{badge_class}">{res.affinity_tier}</span>
+                      <span class="{badge_class}">{esc(res.affinity_tier)}</span>
                     </div>
                   </div>
                 </div>
@@ -434,7 +445,7 @@ def main():
                     st.markdown(f"""
                     <div class="academic-card">
                       <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <b style="color:#0F172A; font-size:0.95rem;">#{i} {g.methodology} × {g.domain}</b>
+                        <b style="color:#0F172A; font-size:0.95rem;">#{i} {esc(g.methodology)} × {esc(g.domain)}</b>
                         <span style="background:#E0F2FE; color:#0369A1; padding:2px 8px; border-radius:6px; font-weight:700; font-size:0.85rem;">
                           Ω = {g.frontier_opportunity_index:.2f}
                         </span>
@@ -443,7 +454,7 @@ def main():
                         Compatibility: <b>{g.semantic_compatibility:.2f}</b> • Existing Literature: <b>{g.literature_density} papers</b>
                       </div>
                       <div style="font-size:0.87rem; color:#334155; margin-top:4px;">
-                        <i>{g.potential_research_question}</i>
+                        <i>{esc(g.potential_research_question)}</i>
                       </div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -534,8 +545,8 @@ def main():
                     <div class="academic-card" style="border-left:4px solid #0284C7; background:#F8FAFC;">
                       <div style="display:flex; justify-content:space-between; align-items:center;">
                         <div>
-                          <b style="font-size:1.1rem; color:#0F172A;">{tprof.name}</b> — <span style="color:#64748B;">{tprof.institution}</span>
-                          <div style="color:#0284C7; font-size:0.88rem; margin-top:2px;">{tprof.lab_name}</div>
+                          <b style="font-size:1.1rem; color:#0F172A;">{esc(tprof.name)}</b> — <span style="color:#64748B;">{esc(tprof.institution)}</span>
+                          <div style="color:#0284C7; font-size:0.88rem; margin-top:2px;">{esc(tprof.lab_name)}</div>
                         </div>
                         <div style="text-align:right;">
                           <span style="background:#E0F2FE; color:#0369A1; padding:2px 8px; border-radius:6px; font-weight:700; font-size:0.85rem;">
@@ -573,8 +584,8 @@ def main():
                         <div class="academic-card">
                           <div style="display:flex; justify-content:space-between; align-items:center;">
                             <div>
-                              <b style="font-size:1.02rem; color:#0F172A;">{s.candidate_partner}</b>
-                              <div style="font-size:0.85rem; color:#64748B;">{s.partner_institution}</div>
+                              <b style="font-size:1.02rem; color:#0F172A;">{esc(s.candidate_partner)}</b>
+                              <div style="font-size:0.85rem; color:#64748B;">{esc(s.partner_institution)}</div>
                             </div>
                             <div style="color:#15803D; font-size:1.15rem; font-weight:800;">
                               {s.overall_synergy_score:.1f}%
@@ -584,7 +595,7 @@ def main():
                             <b>Distinct Complementary Tools:</b> {', '.join([f'`{t}`' for t in s.partner_unique_capabilities[:3]])}
                           </div>
                           <div style="font-size:0.83rem; color:#475569; margin-top:4px;">
-                            <i>{s.suggested_grant_concept}</i>
+                            <i>{esc(s.suggested_grant_concept)}</i>
                           </div>
                         </div>
                         """, unsafe_allow_html=True)
@@ -627,11 +638,11 @@ def main():
                 st.markdown(f"""
                 <div class="academic-card">
                   <div class="stat-label">Input Manuscript Claim</div>
-                  <div class="verbatim-claim">{m.claim_sentence}</div>
+                  <div class="verbatim-claim">{esc(m.claim_sentence)}</div>
                   <div class="stat-label" style="margin-top:8px; color:#15803D;">Matched Source Ground Truth</div>
-                  <div class="verbatim-source">{m.source_sentence}</div>
+                  <div class="verbatim-source">{esc(m.source_sentence)}</div>
                   <div style="display:flex; justify-content:space-between; font-size:0.83rem; color:#64748B; margin-top:6px;">
-                    <span><b>{m.paper_title}</b> ({m.year}) — {m.authors}</span>
+                    <span><b>{esc(m.paper_title)}</b> ({m.year}) — {esc(m.authors)}</span>
                     <span>LCS: <b>{m.lcs_ratio:.2f}</b> • N-gram: <b>{m.ngram_containment:.2f}</b> • <b>[{badge}]</b></span>
                   </div>
                 </div>
@@ -718,15 +729,16 @@ def main():
                 st.success(f"{len(data)} Scholar profiles retrieved")
                 for a in data:
                     src_badge = a.get("source", "Scholar")
+                    p_url = a.get('profile_url') or '#'
                     st.markdown(f"""
                     <div class="academic-card">
                       <div style="display:flex; justify-content:space-between; align-items:center;">
                         <div>
-                          <a href="{a.get('profile_url', '#')}" target="_blank" style="font-size:1.05rem; font-weight:700; color:#1E3A8A; text-decoration:none;">
-                            {a.get('name')} ↗
+                          <a href="{esc(p_url)}" target="_blank" style="font-size:1.05rem; font-weight:700; color:#1E3A8A; text-decoration:none;">
+                            {esc(a.get('name'))} ↗
                           </a>
-                          <div style="font-size:0.88rem; color:#475569;">{a.get('institution')}</div>
-                          <div style="font-size:0.82rem; color:#059669;">{a.get('email_domain')} • <span style="color:#64748B;">{src_badge}</span></div>
+                          <div style="font-size:0.88rem; color:#475569;">{esc(a.get('institution'))}</div>
+                          <div style="font-size:0.82rem; color:#059669;">{esc(a.get('email_domain'))} • <span style="color:#64748B;">{esc(src_badge)}</span></div>
                         </div>
                         <div style="text-align:right;">
                           <div style="font-size:1.35rem; font-weight:800; color:#0F172A;">{a.get('total_citations', 0):,}</div>
@@ -741,17 +753,18 @@ def main():
             elif ptype == "s2":
                 st.success(f"{len(data)} Semantic Scholar profiles retrieved")
                 for a in data:
+                    p_url = a.get('profile_url') or '#'
                     st.markdown(f"""
                     <div class="academic-card">
                       <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <a href="{a.get('profile_url', '#')}" target="_blank" style="font-weight:700; color:#1E3A8A; text-decoration:none; font-size:1.02rem;">
-                          {a.get('name')} ↗
+                        <a href="{esc(p_url)}" target="_blank" style="font-weight:700; color:#1E3A8A; text-decoration:none; font-size:1.02rem;">
+                          {esc(a.get('name'))} ↗
                         </a>
                         <span style="background:#E0F2FE; color:#0369A1; padding:2px 8px; border-radius:6px; font-weight:700; font-size:0.85rem;">
                           h-index {a.get('h_index', 0)}
                         </span>
                       </div>
-                      <div style="font-size:0.88rem; color:#475569;">{a.get('institution')}</div>
+                      <div style="font-size:0.88rem; color:#475569;">{esc(a.get('institution'))}</div>
                       <div style="font-size:0.83rem; color:#64748B; margin-top:4px;">
                         {a.get('paper_count', 0)} publications • {a.get('citation_count', 0):,} citations
                       </div>
@@ -760,14 +773,15 @@ def main():
             elif ptype == "oa_authors":
                 st.success(f"{len(data)} OpenAlex author profiles retrieved")
                 for a in data:
+                    a_url = a.get('id') or '#'
                     st.markdown(f"""
                     <div class="academic-card">
                       <div style="display:flex; justify-content:space-between; align-items:center;">
                         <div>
-                          <a href="{a.get('id', '#')}" target="_blank" style="font-size:1.05rem; font-weight:700; color:#1E3A8A; text-decoration:none;">
-                            {a.get('name')} ↗
+                          <a href="{esc(a_url)}" target="_blank" style="font-size:1.05rem; font-weight:700; color:#1E3A8A; text-decoration:none;">
+                            {esc(a.get('name'))} ↗
                           </a>
-                          <div style="font-size:0.88rem; color:#475569;">{a.get('institution')}</div>
+                          <div style="font-size:0.88rem; color:#475569;">{esc(a.get('institution'))}</div>
                         </div>
                         <div style="text-align:right;">
                           <span style="background:#E0F2FE; color:#0369A1; padding:2px 8px; border-radius:6px; font-weight:700; font-size:0.85rem;">
@@ -786,11 +800,11 @@ def main():
                     link = f"https://doi.org/{w.doi}" if w.doi else "#"
                     st.markdown(f"""
                     <div class="academic-card">
-                      <a href="{link}" target="_blank" style="font-weight:700; color:#1E3A8A; text-decoration:none;">{w.title} ↗</a>
+                      <a href="{esc(link)}" target="_blank" style="font-weight:700; color:#1E3A8A; text-decoration:none;">{esc(w.title)} ↗</a>
                       <div style="font-size:0.83rem; color:#64748B; margin:3px 0;">
-                        {w.year} • {w.venue} • {w.citation_count:,} citations • DOI: {w.doi or 'N/A'}
+                        {w.year} • {esc(w.venue)} • {w.citation_count:,} citations • DOI: {esc(w.doi or 'N/A')}
                       </div>
-                      <div style="font-size:0.87rem; color:#334155;">{w.abstract[:260]}…</div>
+                      <div style="font-size:0.87rem; color:#334155;">{esc(w.abstract[:260])}…</div>
                     </div>
                     """, unsafe_allow_html=True)
             elif ptype == "arxiv":
@@ -798,21 +812,22 @@ def main():
                 for p in data:
                     st.markdown(f"""
                     <div class="academic-card">
-                      <a href="{p.doi}" target="_blank" style="font-weight:700; color:#1E3A8A; text-decoration:none;">{p.title} ↗</a>
+                      <a href="{esc(p.doi)}" target="_blank" style="font-weight:700; color:#1E3A8A; text-decoration:none;">{esc(p.title)} ↗</a>
                       <div style="font-size:0.83rem; color:#64748B; margin:3px 0;">
                         {p.year} • {', '.join(p.keywords)}
                       </div>
-                      <div style="font-size:0.87rem; color:#334155;">{p.abstract[:260]}…</div>
+                      <div style="font-size:0.87rem; color:#334155;">{esc(p.abstract[:260])}…</div>
                     </div>
                     """, unsafe_allow_html=True)
             elif ptype == "dblp":
                 st.success(f"{len(data)} DBLP computer science records found")
                 for a in data:
                     affil_str = ", ".join(a.get("affiliations", [])) if a.get("affiliations") else "Computer Science"
+                    d_url = a.get('dblp_url') or '#'
                     st.markdown(f"""
                     <div class="academic-card">
-                      <a href="{a.get('dblp_url', '#')}" target="_blank" style="font-weight:700; color:#1E3A8A; text-decoration:none;">{a.get('name')} ↗</a>
-                      <div style="font-size:0.85rem; color:#475569;">{affil_str}</div>
+                      <a href="{esc(d_url)}" target="_blank" style="font-weight:700; color:#1E3A8A; text-decoration:none;">{esc(a.get('name'))} ↗</a>
+                      <div style="font-size:0.85rem; color:#475569;">{esc(affil_str)}</div>
                     </div>
                     """, unsafe_allow_html=True)
         else:

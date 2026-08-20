@@ -2,12 +2,11 @@
 
 import sys
 import argparse
-from typing import List
+from typing import List, Optional
 
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-from rich import print as rprint
 
 from scholarmatch import __version__
 from scholarmatch.connectors.mock_data import BENCHMARK_FACULTY, BENCHMARK_CANDIDATES
@@ -18,11 +17,15 @@ from scholarmatch.core.verbatim_audit import VerbatimClaimAuditor
 from scholarmatch.connectors.openalex import OpenAlexClient
 from scholarmatch.models.schemas import Publication
 
-console = Console()
+
+def get_console() -> Console:
+    """Return a Console instance bound dynamically to current sys.stdout."""
+    return Console(file=sys.stdout)
 
 
-def cmd_match(args):
+def cmd_match(args: argparse.Namespace):
     """Run supervisor & lab affinity matcher."""
+    console = get_console()
     query = args.query
     if not query and args.candidate_idx is not None:
         idx = int(args.candidate_idx)
@@ -75,8 +78,9 @@ def cmd_match(args):
     console.print(table)
 
 
-def cmd_gap_discovery(args):
+def cmd_gap_discovery(args: argparse.Namespace):
     """Run literature gap discovery."""
+    console = get_console()
     console.print(Panel.fit(
         f"[bold green]Semantic Literature Review & Frontier Gap Discovery[/bold green]\n"
         f"[dim]Computes Compatibility / ln(1 + Literature Density) White Space Matrix[/dim]",
@@ -114,8 +118,9 @@ def cmd_gap_discovery(args):
     console.print(table)
 
 
-def cmd_coauthor(args):
+def cmd_coauthor(args: argparse.Namespace):
     """Run cross-disciplinary co-author radar."""
+    console = get_console()
     console.print(Panel.fit(
         f"[bold yellow]Cross-Disciplinary Co-Author & Collaboration Radar[/bold yellow]\n"
         f"[dim]Context Cosine Alignment * (1 - Jaccard Method Overlap)[/dim]",
@@ -152,8 +157,9 @@ def cmd_coauthor(args):
     console.print(table)
 
 
-def cmd_audit_claim(args):
+def cmd_audit_claim(args: argparse.Namespace):
     """Run pure computational verbatim claim audit (zero hallucination)."""
+    console = get_console()
     claim = args.claim
     if not claim and args.candidate_idx is not None:
         cand = BENCHMARK_CANDIDATES[int(args.candidate_idx)]
@@ -203,8 +209,9 @@ def cmd_audit_claim(args):
     console.print(f"\n[bold magenta]Deterministic TextRank Verbatim Keyphrases:[/bold magenta] {', '.join(report.verbatim_extracted_keyphrases)}")
 
 
-def cmd_live_search(args):
+def cmd_live_search(args: argparse.Namespace):
     """Run live OpenAlex query."""
+    console = get_console()
     console.print(f"[bold cyan]Querying OpenAlex Live API for:[/bold cyan] {args.query}")
     client = OpenAlexClient()
     works = client.search_works(args.query, limit=args.limit)
@@ -232,8 +239,9 @@ def cmd_live_search(args):
     console.print(table)
 
 
-def cmd_scrape_researcher(args):
+def cmd_scrape_researcher(args: argparse.Namespace):
     """Search and scrape researchers across platforms."""
+    console = get_console()
     platform = args.platform.lower()
     query = args.query
 
@@ -249,10 +257,10 @@ def cmd_scrape_researcher(args):
         authors = scraper.search_authors(query, limit=args.limit)
 
         if not authors:
-            console.print("[yellow]No Google Scholar profiles returned or connection rate-limited.[/yellow]")
+            console.print("[yellow]No Google Scholar author profiles found.[/yellow]")
             return
 
-        table = Table(title=f"Google Scholar Author Search for '{query}'", show_header=True, header_style="bold cyan")
+        table = Table(title=f"Google Scholar Profiles for '{query}'", show_header=True, header_style="bold cyan")
         table.add_column("Name", style="bold")
         table.add_column("Institution", style="dim")
         table.add_column("Citations", justify="right", style="green")
@@ -262,12 +270,12 @@ def cmd_scrape_researcher(args):
             table.add_row(
                 a.get("name", "Unknown"),
                 a.get("institution", "Unknown"),
-                f"{a.get('total_citations', 0):,}",
-                ", ".join(a.get("interests", [])[:3])
+                str(a.get("total_citations", 0)),
+                ", ".join(a.get("interests", []))
             )
         console.print(table)
 
-    elif platform in ("s2", "semanticscholar", "semantic"):
+    elif platform in ("semanticscholar", "s2"):
         from scholarmatch.connectors.semantic_scholar import SemanticScholarClient
         client = SemanticScholarClient()
         authors = client.search_authors(query, limit=args.limit)
@@ -276,20 +284,20 @@ def cmd_scrape_researcher(args):
             console.print("[yellow]No Semantic Scholar profiles found.[/yellow]")
             return
 
-        table = Table(title=f"Semantic Scholar Authors for '{query}'", show_header=True, header_style="bold cyan")
+        table = Table(title=f"Semantic Scholar Profiles for '{query}'", show_header=True, header_style="bold cyan")
         table.add_column("Name", style="bold")
         table.add_column("Institution", style="dim")
-        table.add_column("h-index", justify="center", style="bold yellow")
-        table.add_column("Papers", justify="right")
+        table.add_column("Papers", justify="center")
         table.add_column("Citations", justify="right", style="green")
+        table.add_column("H-Index", justify="center", style="bold yellow")
 
         for a in authors:
             table.add_row(
                 a.get("name", "Unknown"),
                 a.get("institution", "Unknown"),
-                str(a.get("h_index", 0)),
                 str(a.get("paper_count", 0)),
-                f"{a.get('citation_count', 0):,}"
+                str(a.get("citation_count", 0)),
+                str(a.get("h_index", 0))
             )
         console.print(table)
 
@@ -334,10 +342,55 @@ def cmd_scrape_researcher(args):
         console.print(table)
 
 
-def cmd_ui(args):
+def cmd_benchmark(args: argparse.Namespace):
+    """Run execution speed micro-benchmark."""
+    import time
+    from scholarmatch.core.embeddings import DenseEmbeddingEngine
+    from scholarmatch.core.hybrid import ScholarMatcher
+    from scholarmatch.core.verbatim_audit import VerbatimClaimAuditor
+
+    console = get_console()
+    console.print(Panel.fit(
+        f"[bold blue]ScholarMatch Micro-Benchmark Suite v{__version__}[/bold blue]\n"
+        f"[dim]Measures vectorization, hybrid ranking, and evidence matrix audit latency[/dim]",
+        border_style="blue"
+    ))
+
+    engine = DenseEmbeddingEngine(use_fallback_only=True)
+    papers: List[Publication] = []
+    for fac in BENCHMARK_FACULTY:
+        papers.extend(fac.recent_publications)
+
+    t0 = time.perf_counter()
+    engine.encode(["Deterministic benchmark test statement"] * 25)
+    t_enc = (time.perf_counter() - t0) * 1000
+
+    t0 = time.perf_counter()
+    matcher = ScholarMatcher(BENCHMARK_FACULTY, embedding_engine=engine)
+    matcher.match_candidate("3D equivariant graph neural network", top_k=5)
+    t_match = (time.perf_counter() - t0) * 1000
+
+    t0 = time.perf_counter()
+    auditor = VerbatimClaimAuditor(papers)
+    auditor.audit_claim_text("Deep learning discovers antibacterial molecules.")
+    t_audit = (time.perf_counter() - t0) * 1000
+
+    table = Table(title="Micro-Benchmark Latency Results", show_header=True, header_style="bold cyan")
+    table.add_column("Pipeline Component", style="bold")
+    table.add_column("Execution Latency", justify="right", style="bold green")
+
+    table.add_row("Batch Text Vectorization (25 Sentences)", f"{t_enc:.2f} ms")
+    table.add_row("Hybrid Cosine + BM25Okapi Ranking", f"{t_match:.2f} ms")
+    table.add_row("Verbatim Evidence Matrix Audit (LCS + PageRank)", f"{t_audit:.2f} ms")
+
+    console.print(table)
+
+
+def cmd_ui(args: argparse.Namespace):
     """Launch Streamlit Web UI."""
     import subprocess
     from pathlib import Path
+    console = get_console()
     app_path = Path(__file__).resolve().parent / "ui" / "app.py"
     console.print(f"[bold green]Launching ScholarMatch Web UI at {app_path}...[/bold green]")
     try:
@@ -349,7 +402,7 @@ def cmd_ui(args):
 def main():
     parser = argparse.ArgumentParser(
         prog="scholarmatch",
-        description="ScholarMatch: Pure Computational & Hybrid Research-Tech AI Platform"
+        description="ScholarMatch: Pure Computational & Hybrid Research-Tech Platform"
     )
     parser.add_argument("--version", action="version", version=f"ScholarMatch {__version__}")
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
@@ -387,6 +440,9 @@ def main():
     p_live.add_argument("--query", "-q", type=str, required=True, help="Search query")
     p_live.add_argument("--limit", "-l", type=int, default=5, help="Number of works to retrieve")
 
+    # Benchmark subcommand
+    subparsers.add_parser("benchmark", help="Run execution latency micro-benchmarks")
+
     # UI subcommand
     subparsers.add_parser("ui", help="Launch interactive Streamlit web dashboard")
 
@@ -404,6 +460,8 @@ def main():
         cmd_scrape_researcher(args)
     elif args.command == "live-search":
         cmd_live_search(args)
+    elif args.command == "benchmark":
+        cmd_benchmark(args)
     elif args.command == "ui":
         cmd_ui(args)
     else:

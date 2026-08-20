@@ -16,6 +16,7 @@ EMBEDDING_BATCH_SIZE = 32
 
 # Hybrid Search Defaults
 DEFAULT_ALPHA = float(os.getenv("SCHOLARMATCH_ALPHA", "0.65"))  # Weight for Dense (0.65 Dense, 0.35 Sparse)
+DEFAULT_HYBRID_ALPHA = DEFAULT_ALPHA
 BM25_K1 = 1.5
 BM25_B = 0.75
 RRF_K = 60

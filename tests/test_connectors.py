@@ -31,7 +31,7 @@ def test_openalex_abstract_reconstruction():
     assert abstract == "Graph neural networks for biology"
 
 
-@patch("requests.get")
+@patch("requests.Session.get")
 def test_openalex_search_works_mocked(mock_get):
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -59,7 +59,7 @@ def test_openalex_search_works_mocked(mock_get):
     assert works[0].venue == "ICML"
 
 
-@patch("requests.get")
+@patch("requests.Session.get")
 def test_google_scholar_scraper_mocked(mock_get):
     from scholarmatch.connectors.scholar_scraper import GoogleScholarScraper
     mock_resp = MagicMock()
@@ -86,7 +86,7 @@ def test_google_scholar_scraper_mocked(mock_get):
     assert "Machine Learning" in authors[0]["interests"]
 
 
-@patch("requests.get")
+@patch("requests.Session.get")
 def test_semantic_scholar_client_mocked(mock_get):
     from scholarmatch.connectors.semantic_scholar import SemanticScholarClient
     mock_resp = MagicMock()
@@ -113,7 +113,7 @@ def test_semantic_scholar_client_mocked(mock_get):
     assert authors[0]["h_index"] == 35
 
 
-@patch("requests.get")
+@patch("requests.Session.get")
 def test_dblp_client_mocked(mock_get):
     from scholarmatch.connectors.dblp import DBLPClient
     mock_resp = MagicMock()
