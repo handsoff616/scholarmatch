@@ -1,7 +1,7 @@
 """ScholarMatch: Deterministic research matching, literature gap analysis, and citation evidence auditing."""
 
 __version__ = "0.1.0"
-__author__ = "ScholarMatch Contributors"
+__author__ = "Mirza Abdul Basit"
 
 from scholarmatch.core.embeddings import DenseEmbeddingEngine, get_embedding_engine
 from scholarmatch.core.sparse import BM25OkapiEngine

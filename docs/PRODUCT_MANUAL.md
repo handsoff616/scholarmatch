@@ -1,7 +1,8 @@
 # ScholarMatch Product Manual & Technical Specification
 
 **Version:** 0.1.0  
-**Author:** ScholarMatch Contributors  
+**Author:** Mirza Abdul Basit (University of the Punjab)  
+**Google Scholar:** [Mirza Abdul Basit](https://scholar.google.com/citations?user=N6tFIZQAAAAJ&hl=en)  
 **Repository:** [https://github.com/handsoff616/scholarmatch](https://github.com/handsoff616/scholarmatch)  
 **License:** MIT License  
 

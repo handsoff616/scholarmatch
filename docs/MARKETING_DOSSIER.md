@@ -1,6 +1,8 @@
 # ScholarMatch: Institutional Dossier & Technical Brief
 
 **Document ID:** SM-DOSSIER-2026-V1  
+**Author:** Mirza Abdul Basit (University of the Punjab)  
+**Google Scholar:** [Mirza Abdul Basit](https://scholar.google.com/citations?user=N6tFIZQAAAAJ&hl=en)  
 **Target Audience:** University Leadership, Research Deans, Principal Investigators, Grant Offices, and Academic Researchers  
 **Repository:** [https://github.com/handsoff616/scholarmatch](https://github.com/handsoff616/scholarmatch)  
 **Distribution:** Open Source (MIT License)  

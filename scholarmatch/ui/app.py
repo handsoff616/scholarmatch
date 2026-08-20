@@ -259,6 +259,7 @@ def main():
         st.caption(f"Sparse BM25 Weight: `{1.0 - alpha_val:.2f}`")
         st.divider()
         st.markdown("🔒 *100% Deterministic — Zero Generative Hallucinations*")
+        st.caption("Developed by [Mirza Abdul Basit](https://scholar.google.com/citations?user=N6tFIZQAAAAJ&hl=en) • Univ. of the Punjab")
 
     # ─────────────────────────────────────────────────────────────────────────
     # PAGE HEADER

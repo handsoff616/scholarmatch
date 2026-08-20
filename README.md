@@ -184,6 +184,30 @@ python -m pytest tests/ -v
 
 ---
 
+## Author & Maintainer
+
+**Mirza Abdul Basit**  
+University of the Punjab, Lahore, Pakistan  
+- **Google Scholar:** [Mirza Abdul Basit](https://scholar.google.com/citations?user=N6tFIZQAAAAJ&hl=en)  
+- **GitHub:** [@handsoff616](https://github.com/handsoff616)  
+
+---
+
+## Citation
+
+If you use ScholarMatch in your research, literature reviews, or academic workflows, please cite:
+
+```bibtex
+@software{basit2026scholarmatch,
+  author = {Basit, Mirza Abdul},
+  title = {ScholarMatch: Deterministic Research Affinity Matching, Literature Gap Discovery, and Citation Evidence Auditing},
+  url = {https://github.com/handsoff616/scholarmatch},
+  year = {2026}
+}
+```
+
+---
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
