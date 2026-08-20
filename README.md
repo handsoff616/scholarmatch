@@ -76,7 +76,7 @@ pip install -e ".[all]"
 ```bash
 streamlit run app.py
 ```
-Open **`http://localhost:8501`** in your browser.
+Your web browser will open automatically at the local URL printed in the terminal (by default `http://localhost:8501`).
 
 ---
 
