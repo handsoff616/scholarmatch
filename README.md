@@ -1,93 +1,86 @@
-# ScholarMatch (AffinityLens)
+# ScholarMatch
 
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://img.shields.io/badge/tests-29%20passing-brightgreen.svg)]()
 [![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
-ScholarMatch is a Python library, CLI, and web interface for research affinity matching, literature gap analysis, and citation evidence auditing.
+ScholarMatch is a Python library, command-line tool, and web dashboard for academic affinity matching, literature white-space discovery, cross-disciplinary collaboration mapping, and verbatim citation verification.
 
-Unlike generative AI tools that synthesize ungrounded text, ScholarMatch relies on deterministic information retrieval and graph algorithms: hybrid dense embeddings + BM25 ranking, cross-density matrix gap discovery, and exact token alignment (LCS / N-gram) against peer-reviewed literature.
+Unlike generative language models that invent citations or produce unverifiable text summaries, ScholarMatch uses deterministic information retrieval and graph algorithms:
+- **Hybrid Retrieval**: Convex combination of dense vector embeddings and BM25Okapi lexical ranking, with active grant overlap boosts.
+- **Literature Gap Discovery**: Computes the Frontier Opportunity Index ($\Omega$) to find under-researched methodology-domain pairs.
+- **Cross-Disciplinary Co-Author Radar**: Evaluates bipartite graph complementarity to suggest research partners across institutions.
+- **Verbatim Claim Auditing**: Matches manuscript claims against indexed literature using token-level Longest Common Subsequence (LCS), Kessler bibliographic coupling, and citation PageRank.
+- **Academic Data Connectors**: Live interfaces for OpenAlex, Semantic Scholar, arXiv, DBLP, and Google Scholar.
+
+---
+
+## Documentation
+
+- **[Technical Product Manual](docs/PRODUCT_MANUAL.md)**: Exhaustive mathematical formulations, component architecture, CLI reference, and API documentation.
+- **[Institutional Dossier & White Paper](docs/MARKETING_DOSSIER.md)**: Institutional overview for university leadership, department deans, research offices, and funding agencies.
 
 ---
 
 ## Core Capabilities
 
 ### 1. Supervisor & Lab Affinity Matcher
-- **Hybrid Retrieval**: Combines dense semantic similarity (`all-MiniLM-L6-v2` / `SPECTER2`) and sparse lexical scoring (`BM25Okapi`) with configurable convex weights ($\alpha$) and Reciprocal Rank Fusion (RRF).
+- **Hybrid Retrieval**: Combines dense semantic similarity and sparse lexical scoring (`BM25Okapi`) with configurable weights ($\alpha$) and Reciprocal Rank Fusion (RRF).
 - **Active Grant Alignment**: Multiplies affinity scores when candidate proposals share technical keywords with active NSF, ERC, NIH, or DOE awards.
 - **Score Breakdown**: Returns decomposed dense cosine, sparse BM25, and exact overlapping terms for each lab.
 
 ### 2. Literature Gap & White Space Discovery
-- **Method-Domain Matrix**: Indexes methods against application domains to count co-occurrence density ($\rho$).
-- **Frontier Opportunity Index ($\Omega$)**: Identifies method-domain pairs with high theoretical compatibility but zero or low published papers.
-- **Hypothesis Formulation**: Derives structured research questions for identified white spaces.
-- **2D Projection**: Projects paper embeddings onto a 2D PCA plane for visual cluster analysis.
+- **Method-Domain Matrix**: Indexes methods against application domains to calculate co-occurrence density ($\rho$).
+- **Frontier Opportunity Index ($\Omega$)**: Identifies method-domain pairs with high theoretical compatibility but zero or low published papers:
+  $$\Omega(m_i, d_j) = \frac{\cos(\mathbf{e}_{m_i}, \mathbf{e}_{d_j})}{1 + \ln(1 + \rho(m_i, d_j))}$$
+- **2D Literature Landscape**: Projects paper embeddings onto a 2D PCA plane for visual cluster analysis.
 
-### 3. Co-Author & Collaboration Radar
+### 3. Cross-Disciplinary Co-Author Radar
+- **Live Global Graph Search**: Look up any researcher in the world by name (or yourself) via OpenAlex and Semantic Scholar.
 - **Complementarity Scoring**: Recommends collaborators who share broad problem context (high cosine similarity) but use distinct, non-overlapping specialized toolsets (low Jaccard overlap).
-- **Network Graph**: Constructs author-concept bipartite graphs using NetworkX to map institutional connections.
+- **Joint Grant Synthesis**: Generates concrete multidisciplinary project concepts grounded in real publication histories.
 
-### 4. Verbatim Claim & Evidence Auditor (Zero Generative Hallucination)
+### 4. Verbatim Claim & Evidence Auditor
 - **Exact String Alignment**: Computes token-level Longest Common Subsequence (LCS) ratios and N-gram containment between input claims and source papers.
-- **Direct Quoted Evidence**: Extracts unedited sentences and real DOIs from indexed literature.
-- **Bibliometric Metrics**: Calculates Kessler Bibliographic Coupling coefficients, citation digraph PageRank, and graph-based TextRank keyphrases.
+- **Bibliometric Metrics**: Calculates Kessler Bibliographic Coupling coefficients, citation graph PageRank, and graph-based TextRank keyphrases.
+- **Zero Hallucination**: Directly extracts unedited source sentences and real DOIs from peer-reviewed literature.
 
-### 5. Multi-Platform Connectors
-- **Google Scholar**: Scrapes public author profiles, h-index, total citations, and publication lists.
-- **Semantic Scholar (S2)**: Queries the S2 Academic Graph API for author IDs, papers, and citation counts.
-- **OpenAlex & CrossRef**: Interfaces with OpenAlex and CrossRef REST APIs for canonical DOI resolution and topic hierarchies.
-- **arXiv & DBLP**: Ingests arXiv preprints and queries DBLP computer science bibliographies.
-
----
-
-## Mathematical Formulation
-
-### Hybrid Scoring
-$$S_{\text{hybrid}}(q, d) = \alpha \cdot \tilde{S}_{\text{dense}}(q, d) + (1 - \alpha) \cdot \tilde{S}_{\text{sparse}}(q, d)$$
-
-Where:
-- $\tilde{S}_{\text{dense}}(q, d) = \frac{1}{2}\left( \frac{\mathbf{e}_q \cdot \mathbf{e}_d}{\|\mathbf{e}_q\|_2 \|\mathbf{e}_d\|_2} + 1 \right) \in [0, 1]$
-- $\tilde{S}_{\text{sparse}}(q, d) = \text{MinMax}\left( \sum_{t \in q} \text{IDF}(t) \cdot \frac{f(t, d) \cdot (k_1 + 1)}{f(t, d) + k_1(1 - b + b \cdot \frac{|d|}{\text{avgdl}})} \right)$
-
-### Frontier Opportunity Index ($\Omega$)
-$$\Omega(m_i, d_j) = \frac{\cos\left(\mathbf{e}_{m_i}, \mathbf{e}_{d_j}\right)}{\ln\left(1 + \rho(m_i, d_j)\right) + \epsilon}$$
-
-### Collaboration Synergy
-$$\text{Synergy}(A_1, A_2) = \cos(\mathbf{v}_{A_1}, \mathbf{v}_{A_2}) \times \left( 1 - \frac{|\mathcal{S}_{A_1} \cap \mathcal{S}_{A_2}|}{|\mathcal{S}_{A_1} \cup \mathcal{S}_{A_2}|} \right)$$
-
-### Verbatim Sentence Alignment
-$$\text{LCS\_Ratio}(S_c, S_p) = \frac{|\text{LCS}(S_c, S_p)|}{|S_c|}, \quad C_n(S_c, S_p) = \frac{|\text{Gram}_n(S_c) \cap \text{Gram}_n(S_p)|}{|\text{Gram}_n(S_c)|}$$
-
-### Kessler Bibliographic Coupling
-$$K(P_i, P_j) = \frac{|R(P_i) \cap R(P_j)|}{\sqrt{|R(P_i)| \cdot |R(P_j)|}}$$
+### 5. Multi-Platform Academic Feeds
+- **OpenAlex**: Searches 250M+ scholarly works and author profiles.
+- **Semantic Scholar**: Queries author h-indexes, paper counts, and citation graphs.
+- **arXiv**: Ingests recent preprints across CS, Physics, Math, and Quantitative Biology.
+- **DBLP**: Queries computer science bibliographies and author affiliations.
+- **Google Scholar**: Scrapes public profiles with automated open-index fallback.
 
 ---
 
-## Installation
+## Quickstart
 
-### From Source
+### Installation
+
 ```bash
-git clone https://github.com/your-username/ScholarMatch.git
-cd ScholarMatch
+# Clone the repository
+git clone https://github.com/handsoff616/scholarmatch.git
+cd scholarmatch
 
-# Basic install
+# Install the base package
 pip install -e .
 
-# With optional neural models and Streamlit UI
+# Or install with Streamlit UI and all optional dependencies
 pip install -e ".[all]"
 ```
 
-### Direct via Pip
+### Launch the Web Interface
+
 ```bash
-pip install git+https://github.com/your-username/ScholarMatch.git
+streamlit run app.py
 ```
+Open **`http://localhost:8501`** in your browser.
 
 ---
 
-## Usage
-
-### Command Line Interface
+## Command Line Interface (CLI)
 
 ```bash
 # 1. Match a candidate proposal with faculty labs
@@ -100,45 +93,46 @@ scholarmatch gap-discovery --top-k 5
 scholarmatch coauthor --author "Prof. Regina Barzilay" --top-k 3
 
 # 4. Audit claim text against literature
-scholarmatch audit-claim --claim "Deep learning models can discover novel antibacterial molecules without molecular fingerprints."
+scholarmatch audit --claim "Deep learning models can discover novel antibacterial molecules without molecular fingerprints."
 
-# 5. Search / scrape researcher profiles
-scholarmatch scrape-researcher --platform scholar --query "Priya Donti" --limit 5
-scholarmatch scrape-researcher --platform semanticscholar --query "Percy Liang"
+# 5. Search live academic platforms
+scholarmatch scrape-researcher --name "Priya Donti" --platform openalex --limit 5
+scholarmatch scrape-researcher --name "Percy Liang" --platform semanticscholar
 
-# 6. Launch Streamlit Web UI
-scholarmatch ui
+# 6. Run system latency benchmark
+scholarmatch benchmark
 ```
 
-### Python API
+---
+
+## Python API Example
 
 ```python
 from scholarmatch import ScholarMatcher, LiteratureGapAnalyzer, VerbatimClaimAuditor
-from scholarmatch.connectors import BENCHMARK_FACULTY, GoogleScholarScraper
+from scholarmatch.connectors.mock_data import BENCHMARK_FACULTY
+from scholarmatch.core.embeddings import DenseEmbeddingEngine
 
-# Match a research abstract against faculty
-matcher = ScholarMatcher(faculty_corpus=BENCHMARK_FACULTY, alpha=0.65)
-results = matcher.match_candidate("Physics-informed neural networks for power grid stability", top_k=3)
+# Initialize deterministic embedding engine
+engine = DenseEmbeddingEngine(use_fallback_only=True)
+
+# 1. Match candidate proposal against faculty labs
+matcher = ScholarMatcher(faculty_corpus=BENCHMARK_FACULTY, embedding_engine=engine, alpha=0.65)
+results = matcher.match_candidate(
+    candidate_query="3D equivariant geometric graph neural networks for molecular binding affinity prediction",
+    top_k=3
+)
 
 for res in results:
-    print(f"#{res.rank}: {res.faculty.name} ({res.breakdown.final_affinity_score}%)")
-    print(f"  Dense: {res.breakdown.dense_cosine_score} | BM25: {res.breakdown.sparse_bm25_score}")
-    print(f"  Active Grants: {res.breakdown.matching_grants}")
-```
+    print(f"#{res.rank}: {res.faculty.name} ({res.faculty.institution})")
+    print(f"  Affinity: {res.breakdown.final_affinity_score:.1f}%")
+    print(f"  Dense Cosine: {res.breakdown.dense_cosine_score:.3f} | Sparse BM25: {res.breakdown.sparse_bm25_score:.3f}")
 
-### Web Interface
-Run the local Streamlit dashboard:
-```bash
-streamlit run app.py
+# 2. Audit a scientific claim
+papers = [p for f in BENCHMARK_FACULTY for p in f.recent_publications]
+auditor = VerbatimClaimAuditor(papers)
+report = auditor.audit_claim_text("Deep learning models discover antibacterial molecules.")
+print(f"Audit Summary: {report.audit_summary}")
 ```
-
-The web dashboard includes six tabs:
-1. **Supervisor Matcher**: Interactive sliders for $\alpha$, university filters, and score breakdowns.
-2. **Literature Gap Explorer**: 2D PCA cluster maps and $\Omega$ white space tables.
-3. **Co-Author Radar**: Synergy charts and joint grant pitch suggestions.
-4. **Verbatim Claim Audit**: Sentence-level LCS/N-gram alignment and Kessler coupling network.
-5. **Academic Scrapers**: Live query interface for Google Scholar, Semantic Scholar, arXiv, OpenAlex, and DBLP.
-6. **Diagnostics**: Latency benchmarks and vector backend information.
 
 ---
 
@@ -146,29 +140,33 @@ The web dashboard includes six tabs:
 
 ```
 ScholarMatch/
-├── .github/workflows/ci.yml       # GitHub Actions CI matrix
+├── .github/workflows/ci.yml       # GitHub Actions CI pipeline
+├── docs/
+│   ├── PRODUCT_MANUAL.md          # Complete technical product manual
+│   └── MARKETING_DOSSIER.md       # Institutional white paper & brief
 ├── scholarmatch/
-│   ├── config.py                  # Settings & cache directories
-│   ├── cli.py                     # Rich CLI interface
+│   ├── config.py                  # Default parameters and cache settings
+│   ├── cli.py                     # Rich command-line interface
 │   ├── models/schemas.py          # Pydantic data schemas
 │   ├── core/
-│   │   ├── embeddings.py          # Sentence-Transformers + Hashing fallback
+│   │   ├── embeddings.py          # Dense embeddings + feature hashing fallback
 │   │   ├── sparse.py              # BM25Okapi retrieval engine
-│   │   ├── hybrid.py              # Hybrid ranking & grant calibration
-│   │   ├── gap_analyzer.py        # Literature gap analysis & 2D PCA
+│   │   ├── hybrid.py              # Hybrid ranking & active grant calibration
+│   │   ├── gap_analyzer.py        # Literature gap discovery & 2D PCA
 │   │   ├── coauthor_radar.py      # Bipartite collaboration graphs
 │   │   └── verbatim_audit.py      # LCS, N-gram, Kessler coupling & TextRank
 │   ├── connectors/
-│   │   ├── mock_data.py           # Multi-disciplinary test fixtures
-│   │   ├── scholar_scraper.py     # Google Scholar scraper
-│   │   ├── semantic_scholar.py    # Semantic Scholar API client
+│   │   ├── mock_data.py           # Multi-disciplinary benchmark fixtures
+│   │   ├── scholar_scraper.py     # Google Scholar scraper with fallback
+│   │   ├── semantic_scholar.py    # Semantic Scholar Graph API client
 │   │   ├── dblp.py                # DBLP CS bibliography client
-│   │   ├── arxiv.py               # arXiv preprint client
+│   │   ├── arxiv.py               # arXiv preprint XML client
 │   │   ├── openalex.py            # OpenAlex REST client
 │   │   └── crossref.py            # CrossRef DOI resolver
-│   └── ui/app.py                  # Streamlit dashboard
-├── examples/                      # Runnable demo scripts
+│   └── ui/app.py                  # Streamlit web dashboard
+├── examples/                      # Example workflows
 ├── tests/                         # 29 unit tests
+├── app.py                         # Root entry point
 ├── pyproject.toml                 # Package configuration
 ├── requirements.txt               # Dependencies
 ├── LICENSE                        # MIT License
@@ -177,15 +175,15 @@ ScholarMatch/
 
 ---
 
-## Testing
+## Test Suite
 
-Run the test suite:
+Run unit tests across all modules:
 ```bash
-pytest tests/ -v
+python -m pytest tests/ -v
 ```
 
 ---
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+This project is licensed under the [MIT License](LICENSE).
