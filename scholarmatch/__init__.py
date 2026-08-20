@@ -2,6 +2,7 @@
 
 __version__ = "0.1.0"
 __author__ = "Mirza Abdul Basit"
+__email__ = "a.basit378@gmail.com"
 
 from scholarmatch.core.embeddings import DenseEmbeddingEngine, get_embedding_engine
 from scholarmatch.core.sparse import BM25OkapiEngine

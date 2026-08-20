@@ -188,6 +188,7 @@ python -m pytest tests/ -v
 
 **Mirza Abdul Basit**  
 University of the Punjab, Lahore, Pakistan  
+- **Email:** [a.basit378@gmail.com](mailto:a.basit378@gmail.com)  
 - **Google Scholar:** [Mirza Abdul Basit](https://scholar.google.com/citations?user=N6tFIZQAAAAJ&hl=en)  
 - **GitHub:** [@handsoff616](https://github.com/handsoff616)  
 
