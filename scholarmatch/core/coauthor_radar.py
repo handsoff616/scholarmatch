@@ -1,6 +1,6 @@
 """Cross-Disciplinary Collaboration and Co-Author Radar Engine."""
 
-from typing import List, Dict, Any, Set, Tuple
+from typing import List, Dict, Any, Set, Tuple, Optional
 import networkx as nx
 import numpy as np
 
@@ -35,7 +35,7 @@ class CoAuthorRadar:
         top_k: int = 5,
         exclude_same_institution: bool = False
     ) -> List[CoAuthorSuggestion]:
-        """Compute synergy scores between target researcher and all other faculty."""
+        """Compute synergy scores between target researcher (by name) and all other faculty."""
         target_fac = next((f for f in self.faculty_corpus if f.name.lower() == target_faculty_name.lower()), None)
         if not target_fac:
             # Try substring match
@@ -44,13 +44,26 @@ class CoAuthorRadar:
         if not target_fac:
             return []
 
+        return self.recommend_coauthors_for_profile(
+            target_fac=target_fac,
+            top_k=top_k,
+            exclude_same_institution=exclude_same_institution
+        )
+
+    def recommend_coauthors_for_profile(
+        self,
+        target_fac: FacultyProfile,
+        top_k: int = 5,
+        exclude_same_institution: bool = False
+    ) -> List[CoAuthorSuggestion]:
+        """Compute synergy scores for any arbitrary FacultyProfile (e.g. dynamically fetched from OpenAlex/Semantic Scholar)."""
         target_summary_emb = self.embedding_engine.encode(target_fac.research_summary)
         target_specs_set = set([s.lower() for s in target_fac.specialties])
 
         suggestions: List[CoAuthorSuggestion] = []
 
         for candidate in self.faculty_corpus:
-            if candidate.id == target_fac.id:
+            if candidate.id == target_fac.id or candidate.name.lower() == target_fac.name.lower():
                 continue
 
             if exclude_same_institution and candidate.institution.lower() == target_fac.institution.lower():
@@ -71,7 +84,7 @@ class CoAuthorRadar:
             method_complementarity = 1.0 - jaccard_overlap
 
             # 4. Overall Synergy Formulation:
-            # Synergy = Domain_Cosine * (0.4 + 0.6 * Method_Complementarity)
+            # Synergy = Domain_Cosine * (0.35 + 0.65 * Method_Complementarity)
             synergy_raw = domain_cosine * (0.35 + 0.65 * method_complementarity)
             synergy_score = round(min(100.0, max(0.0, synergy_raw * 100.0)), 2)
 
@@ -79,7 +92,6 @@ class CoAuthorRadar:
             unique_to_partner = [s for s in candidate.specialties if s.lower() not in target_specs_set]
             shared_topics = [s for s in candidate.specialties if s.lower() in target_specs_set]
             if not shared_topics:
-                # If no exact match, list top related
                 shared_topics = [candidate.specialties[0]] if candidate.specialties else []
 
             grant_pitch = self._formulate_grant_pitch(target_fac, candidate, unique_to_partner)
@@ -102,10 +114,10 @@ class CoAuthorRadar:
     def _formulate_grant_pitch(self, target: FacultyProfile, partner: FacultyProfile, unique_tools: List[str]) -> str:
         """Deterministically formulate a joint multidisciplinary grant proposal title."""
         tool_str = ", ".join(unique_tools[:2]) if unique_tools else "Complementary Algorithmic Frameworks"
+        target_spec = target.specialties[0] if target.specialties else "Target Research Methodology"
         return (
             f"Joint Initiative: Integrating {tool_str} from {partner.lab_name} with "
-            f"{target.specialties[0] if target.specialties else 'Target Methods'} "
-            f"at {target.institution}."
+            f"{target_spec} at {target.institution}."
         )
 
     def get_network_graph_data(self) -> Dict[str, Any]:

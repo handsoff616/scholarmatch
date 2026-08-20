@@ -35,10 +35,24 @@ class DBLPClient:
                 info = hit.get("info", {})
                 author_name = info.get("author")
                 url = info.get("url")
-                notes = info.get("notes", {}).get("note", []) if isinstance(info.get("notes"), dict) else []
-                if isinstance(notes, str):
-                    notes = [notes]
-                affiliations = [n.get("text") if isinstance(n, dict) else n for n in notes]
+                notes_raw = info.get("notes", {}).get("note", []) if isinstance(info.get("notes"), dict) else []
+                if isinstance(notes_raw, dict):
+                    notes_list = [notes_raw]
+                elif isinstance(notes_raw, list):
+                    notes_list = notes_raw
+                elif isinstance(notes_raw, str):
+                    notes_list = [{"text": notes_raw}]
+                else:
+                    notes_list = []
+
+                affiliations = []
+                for n in notes_list:
+                    if isinstance(n, dict):
+                        text = n.get("text") or n.get("#text") or ""
+                        if text:
+                            affiliations.append(text)
+                    elif isinstance(n, str):
+                        affiliations.append(n)
 
                 authors.append({
                     "name": author_name,

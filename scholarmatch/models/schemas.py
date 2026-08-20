@@ -39,6 +39,7 @@ class FacultyProfile(BaseModel):
     recent_publications: List[Publication] = Field(default_factory=list, description="Key recent papers")
     active_grants: List[ActiveGrant] = Field(default_factory=list, description="Currently funded active projects")
     h_index: int = Field(0, description="H-index")
+    total_citations: int = Field(0, description="Cumulative citation count")
     accepting_students: bool = Field(True, description="Whether the lab is recruiting PhD/Postdocs")
 
 

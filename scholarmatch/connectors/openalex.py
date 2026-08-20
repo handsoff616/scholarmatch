@@ -1,6 +1,6 @@
 """OpenAlex Academic REST API Connector."""
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import requests
 
 from scholarmatch.config import OPENALEX_BASE_URL, DEFAULT_USER_AGENT, REQUEST_TIMEOUT
